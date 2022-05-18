@@ -3,7 +3,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/sendfile.h>
-#include <sys/stat.h>
+
+#define BUF_SIZE 1024
 
 int main(int argc, char *argv[]){
   if(argc != 3){
@@ -16,8 +17,6 @@ int main(int argc, char *argv[]){
     perror("readwrite: open");
     return -1;
   }
-  struct stat size;
-  fstat(fd_in, &size);
   
   int fd_out = creat(argv[2], 0644);
   if(fd_out == -1){
@@ -25,13 +24,12 @@ int main(int argc, char *argv[]){
     return -1;
   }
 
-  /*
-  ssize_t bytes = splice(fd_in, NULL, fd_out, NULL, BUF_SIZE, 0);
-  */
+  ssize_t bytes = 1;
+  while(bytes > 0) {
+    bytes = sendfile(fd_out, fd_in, 0, BUF_SIZE);
+  }
 
-  ssize_t bytes = sendfile(fd_out, fd_in, NULL, size.st_size);
-
-  if(bytes < 0){
+  if(bytes == -1){
     perror("readwrite: splice");
 	return -1;
   }
