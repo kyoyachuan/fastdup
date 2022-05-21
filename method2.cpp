@@ -3,7 +3,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/sendfile.h>
 
 int main(int argc, char *argv[])
 {
@@ -29,11 +28,31 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  ssize_t bytes = sendfile(fd_out, fd_in, NULL, stats.st_size);
-
-  if (bytes == -1)
+  char *buf = new char[stats.st_mode];
+  size_t readn;
+  while (1)
   {
-    perror("readwrite: splice");
+    readn = read(fd_in, buf, stats.st_mode);
+    if (readn <= 0)
+    {
+      break;
+    }
+
+    while (readn)
+    {
+      size_t writen = write(fd_out, buf, readn);
+      if (writen == -1)
+      {
+        perror("readwrite: write");
+        return -1;
+      }
+      readn -= writen;
+    }
+  }
+
+  if (readn == -1)
+  {
+    perror("readwrite: read");
     return -1;
   }
 

@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <sys/sendfile.h>
+
+#define BUF_SIZE 1000000
 
 int main(int argc, char *argv[])
 {
-  struct stat stats;
   if (argc != 3)
   {
     printf("Usage: %s <source> <destination>\n", argv[0]);
@@ -20,7 +19,6 @@ int main(int argc, char *argv[])
     perror("readwrite: open");
     return -1;
   }
-  fstat(fd_in, &stats);
 
   int fd_out = creat(argv[2], 0644);
   if (fd_out == -1)
@@ -29,11 +27,31 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  ssize_t bytes = sendfile(fd_out, fd_in, NULL, stats.st_size);
-
-  if (bytes == -1)
+  char buf[BUF_SIZE];
+  size_t readn;
+  while (1)
   {
-    perror("readwrite: splice");
+    readn = read(fd_in, buf, BUF_SIZE);
+    if (readn <= 0)
+    {
+      break;
+    }
+
+    while (readn)
+    {
+      size_t writen = write(fd_out, buf, readn);
+      if (writen == -1)
+      {
+        perror("readwrite: write");
+        return -1;
+      }
+      readn -= writen;
+    }
+  }
+
+  if (readn == -1)
+  {
+    perror("readwrite: read");
     return -1;
   }
 
